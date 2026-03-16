@@ -19,14 +19,21 @@ app.add_typer(synth_app, name="synth", help="Synthesize speech from a voice prof
 app.add_typer(engine_app, name="engine", help="List and inspect TTS engines.")
 
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
+    ctx: typer.Context,
     verbose: int = typer.Option(0, "--verbose", "-v", count=True, help="Increase log verbosity (-v INFO, -vv DEBUG)."),
 ) -> None:
     """VoiceForge — voice cloning CLI tool."""
     from voiceforge.logging import setup_logging
 
     setup_logging(verbosity=verbose)
+
+    if ctx.invoked_subcommand is None:
+        import click
+
+        click.echo(ctx.get_help())
+        raise typer.Exit()
 
 
 if __name__ == "__main__":

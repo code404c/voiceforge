@@ -13,6 +13,7 @@ def setup_logging(verbosity: int = 0) -> None:
     level = {0: logging.WARNING, 1: logging.INFO}.get(verbosity, logging.DEBUG)
     logger = logging.getLogger("voiceforge")
     logger.setLevel(level)
+    logger.propagate = False
     if not logger.handlers:
         handler = logging.StreamHandler(sys.stderr)
         handler.setFormatter(
