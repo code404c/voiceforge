@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 
-# Default: <project_root>/data/voices
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_VOICES_DIR = _PROJECT_ROOT / "data" / "voices"
+logger = logging.getLogger(__name__)
+
+# Default: ~/.local/share/voiceforge/voices (XDG_DATA_HOME convention)
+_XDG_DATA_HOME = Path(os.environ.get("XDG_DATA_HOME", str(Path.home() / ".local" / "share")))
+_DEFAULT_VOICES_DIR = _XDG_DATA_HOME / "voiceforge" / "voices"
 
 VOICES_DIR = Path(os.environ.get("VOICEFORGE_VOICES_DIR", str(_DEFAULT_VOICES_DIR)))
+logger.debug("VOICES_DIR resolved to %s", VOICES_DIR)
 
 
 def get_voice_dir(name: str) -> Path:
@@ -34,7 +38,4 @@ def list_voice_names() -> list[str]:
     """List all voice names (directories under VOICES_DIR)."""
     if not VOICES_DIR.is_dir():
         return []
-    return sorted(
-        d.name for d in VOICES_DIR.iterdir()
-        if d.is_dir() and not d.name.startswith(".")
-    )
+    return sorted(d.name for d in VOICES_DIR.iterdir() if d.is_dir() and not d.name.startswith("."))

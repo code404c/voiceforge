@@ -31,7 +31,7 @@ def synth(
         console.print(f"[dim]Run 'voiceforge profile extract --voice {voice}' first.[/dim]")
         raise typer.Exit(code=1)
 
-    console.print(f"[bold]Synthesizing speech[/bold]")
+    console.print("[bold]Synthesizing speech[/bold]")
     console.print(f"  Voice:  [cyan]{voice}[/cyan]")
     console.print(f"  Engine: [cyan]{engine}[/cyan]")
     console.print(f"  Text:   {text[:80]}{'...' if len(text) > 80 else ''}")

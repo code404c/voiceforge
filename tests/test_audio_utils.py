@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from voiceforge.audio.utils import scan_clips, get_duration, validate_audio
+from voiceforge.audio.utils import get_duration, scan_clips, validate_audio
 
 
 def test_scan_clips(tmp_path: Path) -> None:

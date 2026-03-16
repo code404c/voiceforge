@@ -15,6 +15,7 @@ from voiceforge.profile.schema import VoiceProfile
 @dataclass
 class ProfileData:
     """Container for extracted voice profile tensors + metadata."""
+
     tensors: dict[str, Tensor]
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -22,6 +23,7 @@ class ProfileData:
 @dataclass
 class EngineInfo:
     """Static information about a TTS engine."""
+
     name: str
     version: str
     description: str

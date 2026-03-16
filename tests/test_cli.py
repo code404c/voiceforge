@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 from typer.testing import CliRunner
 
 from voiceforge.cli.app import app
@@ -52,12 +51,18 @@ def test_voice_info_not_found() -> None:
 
 def test_synth_missing_profile(tmp_voices_dir: Path) -> None:
     """'synth' with a voice that has no profile should exit with an error."""
-    result = runner.invoke(app, [
-        "synth",
-        "--voice", "nonexistent_voice",
-        "--text", "Hello world",
-        "--output", "/tmp/test_out.wav",
-    ])
+    result = runner.invoke(
+        app,
+        [
+            "synth",
+            "--voice",
+            "nonexistent_voice",
+            "--text",
+            "Hello world",
+            "--output",
+            "/tmp/test_out.wav",
+        ],
+    )
 
     assert result.exit_code != 0
     assert "not found" in result.output.lower() or "Profile not found" in result.output

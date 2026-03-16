@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import torch
 
-from voiceforge.profile.schema import VoiceProfile, _MAGIC_KEY, _TENSOR_PREFIX
+from voiceforge.profile.schema import _MAGIC_KEY, _TENSOR_PREFIX, VoiceProfile
 
 
 def test_save_load_roundtrip(tmp_path: Path, dummy_tensors: dict[str, torch.Tensor]) -> None:
@@ -111,3 +111,30 @@ def test_load_invalid_format(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Unrecognized profile format"):
         VoiceProfile.load(bad_path)
+
+
+def test_load_non_dict(tmp_path: Path) -> None:
+    """Loading a non-dict .pt file should raise ValueError."""
+    bad_path = tmp_path / "not_dict.pt"
+    torch.save([1, 2, 3], bad_path)
+
+    with pytest.raises(ValueError, match="expected dict"):
+        VoiceProfile.load(bad_path)
+
+
+def test_empty_tensors_roundtrip(tmp_path: Path) -> None:
+    """A profile with no tensors should roundtrip correctly."""
+    profile = VoiceProfile.create(
+        engine_name="test",
+        engine_version="1.0",
+        source_clips_count=0,
+        best_clip_name="",
+        best_clip_duration=0.0,
+        tensors={},
+    )
+    save_path = tmp_path / "empty_tensors.pt"
+    profile.save(save_path)
+
+    loaded = VoiceProfile.load(save_path)
+    assert loaded.tensors == {}
+    assert loaded.engine_name == "test"

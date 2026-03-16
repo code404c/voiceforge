@@ -32,13 +32,42 @@ name = "pytorch-cuda"
 url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/voiceforge/cli/*.py" = ["B008"]  # typer.Option() in function defaults is idiomatic
+
+[tool.mypy]
+python_version = "3.10"
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["indextts.*", "librosa.*", "torchaudio.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
     "gpu: requires GPU and loaded models (deselect with '-m \"not gpu\"')",
 ]
 
+[tool.coverage.run]
+source = ["voiceforge"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "pytest-cov>=6.0",
+    "ruff>=0.9",
+    "mypy>=1.14",
 ]

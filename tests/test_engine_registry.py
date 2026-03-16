@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from voiceforge.engine import get_engine, list_engines
-from voiceforge.engine.registry import _registry, register
 from voiceforge.engine.base import EngineInfo, TTSEngine
+from voiceforge.engine.registry import _registry, register
 
 
 class _DummyEngine(TTSEngine):
@@ -37,6 +37,7 @@ def _clean_registry():
 
 def test_register_and_get() -> None:
     """Registering a dummy engine and retrieving it should return an instance."""
+
     @register("test_dummy_a")
     class DummyA(_DummyEngine):
         pass
@@ -48,6 +49,7 @@ def test_register_and_get() -> None:
 
 def test_list_engines() -> None:
     """list_engines should include a registered dummy engine's info."""
+
     @register("test_dummy_b")
     class DummyB(_DummyEngine):
         def info(self) -> EngineInfo:
@@ -70,11 +72,22 @@ def test_unknown_engine() -> None:
 
 def test_duplicate_register() -> None:
     """Registering the same engine name twice should raise ValueError."""
+
     @register("test_dummy_dup")
     class DummyDup1(_DummyEngine):
         pass
 
     with pytest.raises(ValueError, match="already registered"):
+
         @register("test_dummy_dup")
         class DummyDup2(_DummyEngine):
             pass
+
+
+def test_empty_registry() -> None:
+    """An empty registry should return empty list and raise on get."""
+    _registry.clear()
+
+    assert list_engines() == []
+    with pytest.raises(KeyError, match="Unknown engine"):
+        get_engine("anything")

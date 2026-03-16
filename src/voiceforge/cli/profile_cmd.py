@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import typer
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 
 from voiceforge.config import get_clips_dir, get_profile_path
@@ -30,7 +27,7 @@ def profile_extract(
 
     profile_path = get_profile_path(voice, engine)
 
-    console.print(f"[bold]Extracting profile[/bold]")
+    console.print("[bold]Extracting profile[/bold]")
     console.print(f"  Voice:  [cyan]{voice}[/cyan]")
     console.print(f"  Engine: [cyan]{engine}[/cyan]")
     console.print(f"  Clips:  {clips_dir}")

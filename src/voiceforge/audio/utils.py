@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import struct
 import wave
 from pathlib import Path
+
+import librosa
+
+logger = logging.getLogger(__name__)
 
 SUPPORTED_EXTENSIONS = {".wav"}
 
@@ -13,17 +18,14 @@ def scan_clips(clips_dir: Path) -> list[Path]:
     """Return sorted list of WAV files in a directory."""
     if not clips_dir.is_dir():
         return []
-    return sorted(f for f in clips_dir.iterdir() if f.suffix.lower() in SUPPORTED_EXTENSIONS)
+    clips = sorted(f for f in clips_dir.iterdir() if f.suffix.lower() in SUPPORTED_EXTENSIONS)
+    logger.debug("scan_clips: found %d clip(s) in %s", len(clips), clips_dir)
+    return clips
 
 
 def get_duration(path: Path) -> float:
-    """Get duration of a WAV file in seconds using stdlib only."""
-    with wave.open(str(path), "rb") as wf:
-        frames = wf.getnframes()
-        rate = wf.getframerate()
-        if rate == 0:
-            return 0.0
-        return frames / rate
+    """Get duration of a WAV file in seconds."""
+    return librosa.get_duration(path=str(path))
 
 
 def validate_audio(path: Path) -> tuple[bool, str]:

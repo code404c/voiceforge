@@ -5,10 +5,9 @@ from __future__ import annotations
 import typer
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 
-from voiceforge.config import VOICES_DIR, list_voice_names, get_clips_dir, get_profiles_dir
-from voiceforge.audio.utils import scan_clips, get_duration
+from voiceforge.audio.utils import get_duration, scan_clips
+from voiceforge.config import VOICES_DIR, get_clips_dir, get_profiles_dir, list_voice_names
 from voiceforge.engine import list_engines
 
 app = typer.Typer(no_args_is_help=True)
@@ -86,10 +85,7 @@ def voice_info(name: str = typer.Argument(..., help="Voice name")) -> None:
 
         for eng in engine_infos:
             profile_path = profiles_dir / f"{eng.name}.pt"
-            if profile_path.exists():
-                status = "[green]available[/green]"
-            else:
-                status = "[dim]not extracted[/dim]"
+            status = "[green]available[/green]" if profile_path.exists() else "[dim]not extracted[/dim]"
             profile_table.add_row(eng.name, status, str(profile_path))
 
         console.print(profile_table)

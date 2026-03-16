@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import logging
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import torch
 from torch import Tensor
+
+logger = logging.getLogger(__name__)
 
 # Magic marker to distinguish VoiceForge profiles from raw .pt files
 _MAGIC_KEY = "_voiceforge_profile"
@@ -82,6 +85,7 @@ class VoiceProfile:
 
         path.parent.mkdir(parents=True, exist_ok=True)
         torch.save(data, path)
+        logger.info("Profile saved to %s", path)
 
     @staticmethod
     def load(path: Path) -> VoiceProfile:
@@ -95,15 +99,15 @@ class VoiceProfile:
             raise ValueError(f"Invalid profile file: expected dict, got {type(data).__name__}")
 
         if data.get(_MAGIC_KEY):
+            logger.info("Loading v2 profile from %s", path)
             return _load_v2(data)
 
         # Try v1 format (from extract_voice_profile.py)
         if _V1_TENSOR_KEYS.issubset(data.keys()):
+            logger.info("Loading v1 profile from %s (auto-migrating)", path)
             return _load_v1(data, path)
 
-        raise ValueError(
-            f"Unrecognized profile format. Keys: {sorted(data.keys())}"
-        )
+        raise ValueError(f"Unrecognized profile format. Keys: {sorted(data.keys())}")
 
 
 def _load_v2(data: dict[str, Any]) -> VoiceProfile:
@@ -111,7 +115,7 @@ def _load_v2(data: dict[str, Any]) -> VoiceProfile:
     tensors = {}
     for key, value in data.items():
         if key.startswith(_TENSOR_PREFIX):
-            tensors[key[len(_TENSOR_PREFIX):]] = value
+            tensors[key[len(_TENSOR_PREFIX) :]] = value
 
     return VoiceProfile(
         profile_version=data["profile_version"],

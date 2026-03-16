@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import os
+import logging
 from pathlib import Path
+from typing import Any
 
 import torch
 import torchaudio
@@ -12,6 +13,8 @@ from voiceforge.audio.utils import get_duration, scan_clips
 from voiceforge.engine.base import EngineInfo, ProfileData, TTSEngine
 from voiceforge.engine.registry import register
 from voiceforge.profile.schema import VoiceProfile
+
+logger = logging.getLogger(__name__)
 
 _PROFILE_SENTINEL = "__profile_loaded__"
 
@@ -24,6 +27,7 @@ def _find_indextts_root() -> Path:
     """Locate the index-tts installation directory."""
     try:
         import indextts
+
         return Path(indextts.__file__).resolve().parents[1]
     except (ImportError, AttributeError):
         # Fallback to known path
@@ -35,7 +39,7 @@ class IndexTTS2Engine(TTSEngine):
     """IndexTTS-2 voice cloning engine."""
 
     def __init__(self) -> None:
-        self._tts = None  # Lazy-loaded
+        self._tts: Any = None  # Lazy-loaded
 
     def info(self) -> EngineInfo:
         return EngineInfo(
@@ -55,7 +59,9 @@ class IndexTTS2Engine(TTSEngine):
         cfg_path = str(root / _DEFAULT_CFG)
         model_dir = str(root / _DEFAULT_MODEL_DIR)
 
+        logger.info("Loading IndexTTS2 model from %s", model_dir)
         self._tts = IndexTTS2(cfg_path=cfg_path, model_dir=model_dir, use_fp16=True)
+        logger.info("IndexTTS2 model loaded successfully")
 
     def extract_profile(
         self,
@@ -64,7 +70,6 @@ class IndexTTS2Engine(TTSEngine):
         max_clips: int | None = None,
     ) -> ProfileData:
         self._ensure_loaded()
-        tts = self._tts
 
         clips = scan_clips(clips_dir)
         if not clips:
@@ -72,6 +77,8 @@ class IndexTTS2Engine(TTSEngine):
 
         if max_clips is not None:
             clips = clips[:max_clips]
+
+        logger.info("Extracting profile from %d clip(s) in %s", len(clips), clips_dir)
 
         # Step 1: Average CAMPPlus style across all clips
         styles: list[torch.Tensor] = []
@@ -82,6 +89,7 @@ class IndexTTS2Engine(TTSEngine):
                     style = self._extract_style(clip)
                     styles.append(style)
                 except Exception:
+                    logger.warning("Failed to extract style from %s", clip.name, exc_info=True)
                     failed.append(clip.name)
 
         if not styles:
@@ -90,9 +98,11 @@ class IndexTTS2Engine(TTSEngine):
         avg_style = torch.stack(styles).mean(dim=0)  # (1, 192)
 
         # Step 2: Extract sequence features from best clip
-        best_clip = self._select_best_clip(clips_dir)
+        successful_clips = [c for c in clips if c.name not in failed]
+        best_clip = self._select_best_clip(successful_clips)
         best_clip_name = best_clip.name
         best_clip_duration = get_duration(best_clip)
+        logger.debug("Selected best clip: %s (%.2fs)", best_clip_name, best_clip_duration)
 
         with torch.no_grad():
             spk_cond, _, s2mel_prompt, mel = self._extract_sequence_features(best_clip)
@@ -156,8 +166,8 @@ class IndexTTS2Engine(TTSEngine):
         import librosa
 
         tts = self._tts
-        audio, sr = librosa.load(str(audio_path))
-        audio = torch.tensor(audio).unsqueeze(0)
+        audio_np, sr = librosa.load(str(audio_path))
+        audio = torch.tensor(audio_np).unsqueeze(0)
 
         max_samples = int(15 * sr)
         if audio.shape[1] > max_samples:
@@ -182,8 +192,8 @@ class IndexTTS2Engine(TTSEngine):
         import librosa
 
         tts = self._tts
-        audio, sr = librosa.load(str(audio_path))
-        audio = torch.tensor(audio).unsqueeze(0)
+        audio_np, sr = librosa.load(str(audio_path))
+        audio = torch.tensor(audio_np).unsqueeze(0)
 
         max_samples = int(15 * sr)
         if audio.shape[1] > max_samples:
@@ -222,11 +232,10 @@ class IndexTTS2Engine(TTSEngine):
 
         return spk_cond_emb, style, prompt_condition, ref_mel
 
-    def _select_best_clip(self, clips_dir: Path) -> Path:
+    def _select_best_clip(self, clips: list[Path]) -> Path:
         """Select the longest clip (up to 15s) as reference."""
-        clips = scan_clips(clips_dir)
         if not clips:
-            raise FileNotFoundError(f"No WAV files found in {clips_dir}")
+            raise RuntimeError("No successful clips available for selection")
 
         best: Path | None = None
         best_dur = 0.0
