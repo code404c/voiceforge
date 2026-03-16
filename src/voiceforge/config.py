@@ -34,7 +34,8 @@ def _resolve_default_voices_dir() -> Path:
     return _XDG_VOICES_DIR
 
 
-VOICES_DIR = Path(os.environ.get("VOICEFORGE_VOICES_DIR", str(_resolve_default_voices_dir())))
+_env_override = os.environ.get("VOICEFORGE_VOICES_DIR")
+VOICES_DIR = Path(_env_override) if _env_override else _resolve_default_voices_dir()
 logger.debug("VOICES_DIR resolved to %s", VOICES_DIR)
 
 
