@@ -11,11 +11,36 @@ from voiceforge.cli.app import app
 runner = CliRunner()
 
 
+def test_bare_invocation() -> None:
+    """Running voiceforge with no args should show help and exit 0."""
+    result = runner.invoke(app, [])
+    assert result.exit_code == 0
+    assert "VoiceForge" in result.output or "voiceforge" in result.output.lower()
+
+
 def test_help() -> None:
     """--help should exit 0 and show usage info."""
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
     assert "VoiceForge" in result.output or "voiceforge" in result.output.lower()
+
+
+def test_version() -> None:
+    """--version should print the version string and exit 0."""
+    from voiceforge import __version__
+
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0
+    assert __version__ in result.output
+
+
+def test_version_short() -> None:
+    """-V should print the version string and exit 0."""
+    from voiceforge import __version__
+
+    result = runner.invoke(app, ["-V"])
+    assert result.exit_code == 0
+    assert __version__ in result.output
 
 
 def test_voice_list(tmp_voices_dir: Path) -> None:
@@ -50,7 +75,9 @@ def test_voice_info_not_found() -> None:
 
 
 def test_synth_missing_profile(tmp_voices_dir: Path) -> None:
-    """'synth' with a voice that has no profile should exit with an error."""
+    """'synth' with a voice that has no profile should raise ProfileNotFoundError."""
+    from voiceforge.exceptions import ProfileNotFoundError
+
     result = runner.invoke(
         app,
         [
@@ -65,4 +92,4 @@ def test_synth_missing_profile(tmp_voices_dir: Path) -> None:
     )
 
     assert result.exit_code != 0
-    assert "not found" in result.output.lower() or "Profile not found" in result.output
+    assert isinstance(result.exception, ProfileNotFoundError)

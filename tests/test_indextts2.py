@@ -7,7 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from voiceforge.engine.indextts2 import IndexTTS2Engine
+from voiceforge.engine.indextts2 import IndexTTS2Engine, _find_indextts_root
+from voiceforge.exceptions import NoClipsError
 
 
 def _make_wav(path: Path, duration_s: float = 1.0) -> None:
@@ -61,8 +62,8 @@ class TestSelectBestClip:
         assert best == a
 
     def test_empty_clips_raises(self) -> None:
-        """Empty clip list should raise RuntimeError."""
-        with pytest.raises(RuntimeError, match="No successful clips"):
+        """Empty clip list should raise NoClipsError."""
+        with pytest.raises(NoClipsError, match="No successful clips"):
             self.engine._select_best_clip([])
 
     def test_single_clip(self, tmp_path: Path) -> None:
@@ -74,21 +75,53 @@ class TestSelectBestClip:
         assert best == clip
 
 
+class TestFindIndexttsRoot:
+    """Tests for _find_indextts_root resolution logic."""
+
+    def test_env_var_valid(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """VOICEFORGE_INDEXTTS_ROOT should be used if set and exists."""
+        monkeypatch.setenv("VOICEFORGE_INDEXTTS_ROOT", str(tmp_path))
+        assert _find_indextts_root() == tmp_path
+
+    def test_env_var_invalid(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Non-existent VOICEFORGE_INDEXTTS_ROOT should raise FileNotFoundError."""
+        monkeypatch.setenv("VOICEFORGE_INDEXTTS_ROOT", "/nonexistent/path")
+        with pytest.raises(FileNotFoundError, match="VOICEFORGE_INDEXTTS_ROOT"):
+            _find_indextts_root()
+
+    def test_no_env_no_package(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Missing env var and package should raise ImportError."""
+        monkeypatch.delenv("VOICEFORGE_INDEXTTS_ROOT", raising=False)
+        # Hide indextts from import
+        import sys
+
+        monkeypatch.setitem(sys.modules, "indextts", None)
+        with pytest.raises(ImportError, match="indextts package not found"):
+            _find_indextts_root()
+
+    def test_engine_info(self) -> None:
+        """info() should return correct engine metadata."""
+        engine = IndexTTS2Engine()
+        info = engine.info()
+        assert info.name == "indextts2"
+        assert info.version == "2.0.0"
+
+
 class TestExtractProfileEdgeCases:
     """Test extract_profile error paths that don't need GPU."""
 
     def test_empty_clips_dir(self, tmp_path: Path) -> None:
-        """extract_profile on an empty directory should raise FileNotFoundError."""
+        """extract_profile on an empty directory should raise NoClipsError."""
         engine = IndexTTS2Engine()
         engine._tts = "fake"  # bypass _ensure_loaded
 
-        with pytest.raises(FileNotFoundError, match="No WAV files"):
+        with pytest.raises(NoClipsError, match="No WAV files"):
             engine.extract_profile(tmp_path)
 
     def test_nonexistent_clips_dir(self, tmp_path: Path) -> None:
-        """extract_profile on a non-existent directory should raise FileNotFoundError."""
+        """extract_profile on a non-existent directory should raise NoClipsError."""
         engine = IndexTTS2Engine()
         engine._tts = "fake"
 
-        with pytest.raises(FileNotFoundError, match="No WAV files"):
+        with pytest.raises(NoClipsError, match="No WAV files"):
             engine.extract_profile(tmp_path / "does_not_exist")

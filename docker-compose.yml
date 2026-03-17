@@ -1,0 +1,11 @@
+services:
+  voiceforge:
+    build: .
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - VOICEFORGE_VOICES_DIR=/data/voices
+      - VOICEFORGE_INDEXTTS_ROOT=/models/index-tts
+    volumes:
+      - ./data/voices:/data/voices
+      - ${INDEXTTS_PATH:-./index-tts}:/models/index-tts:ro

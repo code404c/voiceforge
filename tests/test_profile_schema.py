@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 import torch
 
+from voiceforge.exceptions import ProfileNotFoundError
 from voiceforge.profile.schema import _MAGIC_KEY, _TENSOR_PREFIX, VoiceProfile
 
 
@@ -99,8 +100,8 @@ def test_tensor_prefix(tmp_path: Path, dummy_tensors: dict[str, torch.Tensor]) -
 
 
 def test_load_nonexistent(tmp_path: Path) -> None:
-    """Loading a non-existent file should raise FileNotFoundError."""
-    with pytest.raises(FileNotFoundError):
+    """Loading a non-existent file should raise ProfileNotFoundError."""
+    with pytest.raises(ProfileNotFoundError):
         VoiceProfile.load(tmp_path / "does_not_exist.pt")
 
 

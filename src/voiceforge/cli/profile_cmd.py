@@ -6,8 +6,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from voiceforge.config import get_clips_dir, get_profile_path
+from voiceforge.config import DEFAULT_ENGINE, get_clips_dir, get_profile_path
 from voiceforge.engine import get_engine
+from voiceforge.exceptions import NoClipsError
 from voiceforge.profile.schema import VoiceProfile
 
 app = typer.Typer(no_args_is_help=True)
@@ -17,13 +18,12 @@ console = Console()
 @app.command("extract")
 def profile_extract(
     voice: str = typer.Option(..., "--voice", "-v", help="Voice name"),
-    engine: str = typer.Option("indextts2", "--engine", "-e", help="Engine name"),
+    engine: str = typer.Option(DEFAULT_ENGINE, "--engine", "-e", help="Engine name"),
 ) -> None:
     """Extract a voice profile from audio clips."""
     clips_dir = get_clips_dir(voice)
     if not clips_dir.is_dir():
-        console.print(f"[red]Clips directory not found: {clips_dir}[/red]")
-        raise typer.Exit(code=1)
+        raise NoClipsError(f"Clips directory not found: {clips_dir}")
 
     profile_path = get_profile_path(voice, engine)
 
@@ -60,14 +60,10 @@ def profile_extract(
 @app.command("info")
 def profile_info(
     voice: str = typer.Option(..., "--voice", "-v", help="Voice name"),
-    engine: str = typer.Option("indextts2", "--engine", "-e", help="Engine name"),
+    engine: str = typer.Option(DEFAULT_ENGINE, "--engine", "-e", help="Engine name"),
 ) -> None:
     """Display metadata for an extracted voice profile."""
     profile_path = get_profile_path(voice, engine)
-    if not profile_path.exists():
-        console.print(f"[red]Profile not found: {profile_path}[/red]")
-        raise typer.Exit(code=1)
-
     vp = VoiceProfile.load(profile_path)
 
     table = Table(title=f"Profile — {voice} ({engine})")

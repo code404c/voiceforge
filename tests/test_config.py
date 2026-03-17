@@ -1,4 +1,4 @@
-"""Tests for voiceforge.config — path resolution and voice listing."""
+"""Tests for voiceforge.config — path resolution, config file, and voice listing."""
 
 from __future__ import annotations
 
@@ -66,3 +66,70 @@ def test_get_profile_path(tmp_voices_dir: Path) -> None:
 
     path = get_profile_path("alice", "indextts2")
     assert path == tmp_voices_dir / "alice" / "profiles" / "indextts2.pt"
+
+
+def test_load_toml_missing(tmp_path: Path) -> None:
+    """_load_toml should return {} for non-existent file."""
+    from voiceforge.config import _load_toml
+
+    assert _load_toml(tmp_path / "nope.toml") == {}
+
+
+def test_load_toml_valid(tmp_path: Path) -> None:
+    """_load_toml should parse a valid TOML file."""
+    from voiceforge.config import _load_toml
+
+    toml_file = tmp_path / "test.toml"
+    toml_file.write_text('voices_dir = "/custom/path"\ndefault_engine = "test"\n')
+    data = _load_toml(toml_file)
+    assert data["voices_dir"] == "/custom/path"
+    assert data["default_engine"] == "test"
+
+
+def test_voiceforge_config_load_defaults() -> None:
+    """VoiceForgeConfig.load with no file or env should use defaults."""
+    from voiceforge.config import VoiceForgeConfig
+
+    cfg = VoiceForgeConfig()
+    assert cfg.default_engine == "indextts2"
+    assert cfg.indextts_root is None
+
+
+def test_voiceforge_config_load_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """VoiceForgeConfig.load should pick up env vars."""
+    from voiceforge.config import VoiceForgeConfig
+
+    monkeypatch.setenv("VOICEFORGE_DEFAULT_ENGINE", "myengine")
+    monkeypatch.setenv("VOICEFORGE_INDEXTTS_ROOT", "/my/root")
+    # Prevent config file from interfering
+    monkeypatch.setattr("voiceforge.config.CONFIG_FILE", Path("/nonexistent/config.toml"))
+
+    cfg = VoiceForgeConfig.load()
+    assert cfg.default_engine == "myengine"
+    assert cfg.indextts_root == "/my/root"
+
+
+def test_voiceforge_config_load_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """VoiceForgeConfig.load should read from config file."""
+    from voiceforge.config import VoiceForgeConfig
+
+    config_file = tmp_path / "config.toml"
+    config_file.write_text('voices_dir = "~/my_voices"\ndefault_engine = "fileengine"\n')
+
+    monkeypatch.setattr("voiceforge.config.CONFIG_FILE", config_file)
+    # Clear env vars
+    monkeypatch.delenv("VOICEFORGE_VOICES_DIR", raising=False)
+    monkeypatch.delenv("VOICEFORGE_DEFAULT_ENGINE", raising=False)
+    monkeypatch.delenv("VOICEFORGE_INDEXTTS_ROOT", raising=False)
+
+    cfg = VoiceForgeConfig.load()
+    assert cfg.default_engine == "fileengine"
+    assert "my_voices" in str(cfg.voices_dir)
+
+
+def test_get_config() -> None:
+    """get_config should return a VoiceForgeConfig instance."""
+    from voiceforge.config import VoiceForgeConfig, get_config
+
+    cfg = get_config()
+    assert isinstance(cfg, VoiceForgeConfig)

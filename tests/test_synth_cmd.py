@@ -50,7 +50,9 @@ def voice_with_profile(tmp_voices_dir: Path, dummy_tensors: dict[str, torch.Tens
 
 
 def test_synth_missing_profile(tmp_voices_dir: Path) -> None:
-    """synth with a missing profile should exit with code 1."""
+    """synth with a missing profile should raise ProfileNotFoundError."""
+    from voiceforge.exceptions import ProfileNotFoundError
+
     result = runner.invoke(
         app,
         [
@@ -64,7 +66,7 @@ def test_synth_missing_profile(tmp_voices_dir: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "not found" in result.output.lower() or "Profile not found" in result.output
+    assert isinstance(result.exception, ProfileNotFoundError)
 
 
 def test_synth_success(voice_with_profile: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

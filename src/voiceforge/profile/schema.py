@@ -11,6 +11,8 @@ from typing import Any
 import torch
 from torch import Tensor
 
+from voiceforge.exceptions import ProfileNotFoundError
+
 logger = logging.getLogger(__name__)
 
 # Magic marker to distinguish VoiceForge profiles from raw .pt files
@@ -91,7 +93,7 @@ class VoiceProfile:
     def load(path: Path) -> VoiceProfile:
         """Load a profile from a .pt file, with v1 backward compatibility."""
         if not path.exists():
-            raise FileNotFoundError(f"Profile not found: {path}")
+            raise ProfileNotFoundError(f"Profile not found: {path}")
 
         data = torch.load(path, map_location="cpu", weights_only=True)
 

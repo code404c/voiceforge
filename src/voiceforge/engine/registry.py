@@ -6,11 +6,14 @@ import logging
 from collections.abc import Callable
 
 from voiceforge.engine.base import EngineInfo, TTSEngine
+from voiceforge.exceptions import EngineNotFoundError
 
 logger = logging.getLogger(__name__)
 
 # Registry: engine_name -> factory callable (lazy instantiation)
 _registry: dict[str, Callable[[], TTSEngine]] = {}
+# Cache: engine_name -> singleton instance (avoids reloading models)
+_instance_cache: dict[str, TTSEngine] = {}
 
 
 def register(name: str) -> Callable:
@@ -32,12 +35,14 @@ def register(name: str) -> Callable:
 
 
 def get_engine(name: str) -> TTSEngine:
-    """Instantiate and return an engine by name."""
+    """Return a cached engine instance, creating it on first call."""
     if name not in _registry:
         available = ", ".join(sorted(_registry)) or "(none)"
-        raise KeyError(f"Unknown engine '{name}'. Available: {available}")
-    logger.debug("Instantiating engine '%s'", name)
-    return _registry[name]()
+        raise EngineNotFoundError(f"Unknown engine '{name}'. Available: {available}")
+    if name not in _instance_cache:
+        logger.debug("Instantiating engine '%s'", name)
+        _instance_cache[name] = _registry[name]()
+    return _instance_cache[name]
 
 
 def list_engines() -> list[EngineInfo]:

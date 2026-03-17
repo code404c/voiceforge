@@ -2,15 +2,19 @@
 name = "voiceforge"
 version = "0.1.0"
 description = "Voice cloning CLI tool with multi-engine support"
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
     "typer>=0.15",
     "rich>=13.0",
-    "indextts",
+    "torch>=2.0",
+    "torchaudio>=2.0",
+    "librosa>=0.10",
+    "tomli>=2.0; python_version < '3.11'",
 ]
 
 [project.scripts]
-voiceforge = "voiceforge.cli.app:app"
+voiceforge = "voiceforge.cli.app:cli"
 
 [build-system]
 requires = ["hatchling >= 1.27.0"]
@@ -23,7 +27,6 @@ packages = ["src/voiceforge"]
 no-build-isolation-package = ["deepspeed"]
 
 [tool.uv.sources]
-indextts = { path = "../../tts/index-tts", editable = true }
 torch = [{ index = "pytorch-cuda", marker = "sys_platform == 'linux'" }]
 torchaudio = [{ index = "pytorch-cuda", marker = "sys_platform == 'linux'" }]
 
@@ -48,7 +51,7 @@ python_version = "3.10"
 check_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = ["indextts.*", "librosa.*", "torchaudio.*"]
+module = ["indextts.*", "librosa.*", "torchaudio.*", "tomli.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
@@ -70,4 +73,5 @@ dev = [
     "pytest-cov>=6.0",
     "ruff>=0.9",
     "mypy>=1.14",
+    "pre-commit>=4.0",
 ]

@@ -1,4 +1,4 @@
-.PHONY: lint format typecheck test test-cov check
+.PHONY: lint format typecheck test test-cov check install-hooks
 
 lint:
 	uv run ruff check src/ tests/
@@ -16,3 +16,6 @@ test-cov:
 	uv run pytest -m "not gpu" --cov --cov-report=term-missing
 
 check: lint typecheck test
+
+install-hooks:
+	uv run pre-commit install

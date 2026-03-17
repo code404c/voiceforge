@@ -1,14 +1,18 @@
-"""Voice management commands — list and inspect voice directories."""
+"""Voice management commands — list, inspect, export, import."""
 
 from __future__ import annotations
+
+import tarfile
+from pathlib import Path
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from voiceforge.audio.utils import get_duration, scan_clips
-from voiceforge.config import VOICES_DIR, get_clips_dir, get_profiles_dir, list_voice_names
+from voiceforge.config import VOICES_DIR, get_clips_dir, get_profiles_dir, get_voice_dir, list_voice_names
 from voiceforge.engine import list_engines
+from voiceforge.exceptions import ConfigError, VoiceNotFoundError
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()
@@ -89,3 +93,58 @@ def voice_info(name: str = typer.Argument(..., help="Voice name")) -> None:
             profile_table.add_row(eng.name, status, str(profile_path))
 
         console.print(profile_table)
+
+
+@app.command("export")
+def voice_export(
+    name: str = typer.Argument(..., help="Voice name to export"),
+    output: Path = typer.Option(None, "--output", "-o", help="Output .tar.gz path (default: <name>.tar.gz)"),
+) -> None:
+    """Export a voice (clips + profiles) as a tar.gz archive."""
+    voice_dir = get_voice_dir(name)
+    if not voice_dir.is_dir():
+        raise VoiceNotFoundError(f"Voice '{name}' not found at {voice_dir}")
+
+    if output is None:
+        output = Path(f"{name}.tar.gz")
+
+    with tarfile.open(output, "w:gz") as tar:
+        tar.add(voice_dir, arcname=name)
+
+    console.print(f"[green]Exported '{name}' to {output}[/green]")
+
+
+@app.command("import")
+def voice_import(
+    archive: Path = typer.Argument(..., help="Path to .tar.gz voice archive"),
+    name: str | None = typer.Option(None, "--name", "-n", help="Override voice name (default: from archive)"),
+) -> None:
+    """Import a voice from a .tar.gz archive."""
+    if not archive.is_file():
+        raise ConfigError(f"Archive not found: {archive}")
+
+    with tarfile.open(archive, "r:gz") as tar:
+        # Determine voice name from archive top-level directory
+        members = tar.getnames()
+        if not members:
+            raise ConfigError("Archive is empty")
+
+        # Security: check for path traversal
+        for member_name in members:
+            if member_name.startswith("/") or ".." in member_name:
+                raise ConfigError(f"Unsafe path in archive: {member_name}")
+
+        archive_root = members[0].split("/")[0]
+        voice_name = name or archive_root
+
+        target_dir = get_voice_dir(voice_name)
+        if target_dir.is_dir():
+            raise ConfigError(f"Voice '{voice_name}' already exists at {target_dir}. Remove it first or use --name.")
+
+        # Extract, renaming the root if needed
+        for member in tar.getmembers():
+            if name and member.name.startswith(archive_root):
+                member.name = member.name.replace(archive_root, voice_name, 1)
+            tar.extract(member, VOICES_DIR, filter="data")
+
+    console.print(f"[green]Imported voice '{voice_name}' to {target_dir}[/green]")

@@ -8,7 +8,6 @@ from rich.panel import Panel
 from rich.table import Table
 
 from voiceforge.engine import get_engine, list_engines
-from voiceforge.engine.registry import _registry
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()
@@ -36,11 +35,6 @@ def engine_list() -> None:
 @app.command("info")
 def engine_info(name: str = typer.Argument(..., help="Engine name")) -> None:
     """Show detailed information about a TTS engine."""
-    if name not in _registry:
-        available = ", ".join(sorted(_registry)) or "(none)"
-        console.print(f"[red]Unknown engine '{name}'. Available: {available}[/red]")
-        raise typer.Exit(code=1)
-
     eng = get_engine(name)
     info = eng.info()
 

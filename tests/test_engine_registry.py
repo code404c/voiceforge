@@ -6,7 +6,8 @@ import pytest
 
 from voiceforge.engine import get_engine, list_engines
 from voiceforge.engine.base import EngineInfo, TTSEngine
-from voiceforge.engine.registry import _registry, register
+from voiceforge.engine.registry import _instance_cache, _registry, register
+from voiceforge.exceptions import EngineNotFoundError
 
 
 class _DummyEngine(TTSEngine):
@@ -30,9 +31,12 @@ class _DummyEngine(TTSEngine):
 def _clean_registry():
     """Save and restore registry state around each test."""
     saved = dict(_registry)
+    saved_cache = dict(_instance_cache)
     yield
     _registry.clear()
     _registry.update(saved)
+    _instance_cache.clear()
+    _instance_cache.update(saved_cache)
 
 
 def test_register_and_get() -> None:
@@ -66,7 +70,7 @@ def test_list_engines() -> None:
 
 def test_unknown_engine() -> None:
     """Getting a non-existent engine should raise KeyError."""
-    with pytest.raises(KeyError, match="Unknown engine"):
+    with pytest.raises(EngineNotFoundError, match="Unknown engine"):
         get_engine("nonexistent_engine_xyz")
 
 
@@ -84,10 +88,22 @@ def test_duplicate_register() -> None:
             pass
 
 
+def test_get_engine_returns_cached_instance() -> None:
+    """get_engine should return the same instance on repeated calls."""
+
+    @register("test_dummy_cached")
+    class DummyCached(_DummyEngine):
+        pass
+
+    first = get_engine("test_dummy_cached")
+    second = get_engine("test_dummy_cached")
+    assert first is second
+
+
 def test_empty_registry() -> None:
     """An empty registry should return empty list and raise on get."""
     _registry.clear()
 
     assert list_engines() == []
-    with pytest.raises(KeyError, match="Unknown engine"):
+    with pytest.raises(EngineNotFoundError, match="Unknown engine"):
         get_engine("anything")

@@ -64,7 +64,9 @@ def voice_with_clips(tmp_voices_dir: Path) -> str:
 
 
 def test_extract_no_clips_dir(tmp_voices_dir: Path) -> None:
-    """extract with a missing clips dir should exit with code 1."""
+    """extract with a missing clips dir should raise NoClipsError."""
+    from voiceforge.exceptions import NoClipsError
+
     result = runner.invoke(
         app,
         [
@@ -75,7 +77,7 @@ def test_extract_no_clips_dir(tmp_voices_dir: Path) -> None:
         ],
     )
     assert result.exit_code != 0
-    assert "not found" in result.output.lower()
+    assert isinstance(result.exception, NoClipsError)
 
 
 def test_extract_success(voice_with_clips: str, tmp_voices_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ import torchaudio
 from voiceforge.audio.utils import get_duration, scan_clips
 from voiceforge.engine.base import EngineInfo, ProfileData, TTSEngine
 from voiceforge.engine.registry import register
+from voiceforge.exceptions import EngineLoadError, NoClipsError
 from voiceforge.profile.schema import VoiceProfile
 
 logger = logging.getLogger(__name__)
@@ -24,14 +26,33 @@ _DEFAULT_MODEL_DIR = "checkpoints"
 
 
 def _find_indextts_root() -> Path:
-    """Locate the index-tts installation directory."""
+    """Locate the index-tts installation directory.
+
+    Resolution order:
+    1. VOICEFORGE_INDEXTTS_ROOT environment variable
+    2. indextts package location (via importlib)
+    3. Raise with a clear error message
+    """
+    env_root = os.environ.get("VOICEFORGE_INDEXTTS_ROOT")
+    if env_root:
+        root = Path(env_root)
+        if root.is_dir():
+            return root
+        raise FileNotFoundError(
+            f"VOICEFORGE_INDEXTTS_ROOT={env_root} does not exist. "
+            "Please set it to the index-tts repository root."
+        )
+
     try:
         import indextts
 
         return Path(indextts.__file__).resolve().parents[1]
     except (ImportError, AttributeError):
-        # Fallback to known path
-        return Path.home() / "workspaces" / "tts" / "index-tts"
+        raise ImportError(
+            "indextts package not found. Install it with:\n"
+            "  uv pip install -e /path/to/index-tts\n"
+            "Or set VOICEFORGE_INDEXTTS_ROOT=/path/to/index-tts"
+        ) from None
 
 
 @register("indextts2")
@@ -73,7 +94,7 @@ class IndexTTS2Engine(TTSEngine):
 
         clips = scan_clips(clips_dir)
         if not clips:
-            raise FileNotFoundError(f"No WAV files found in {clips_dir}")
+            raise NoClipsError(f"No WAV files found in {clips_dir}")
 
         if max_clips is not None:
             clips = clips[:max_clips]
@@ -93,7 +114,7 @@ class IndexTTS2Engine(TTSEngine):
                     failed.append(clip.name)
 
         if not styles:
-            raise RuntimeError("Failed to extract style from any clip")
+            raise EngineLoadError("Failed to extract style from any clip")
 
         avg_style = torch.stack(styles).mean(dim=0)  # (1, 192)
 
@@ -184,7 +205,7 @@ class IndexTTS2Engine(TTSEngine):
         feat = feat - feat.mean(dim=0, keepdim=True)
         return tts.campplus_model(feat.unsqueeze(0))  # (1, 192)
 
-    def _extract_sequence_features(self, audio_path: Path):
+    def _extract_sequence_features(self, audio_path: Path) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Extract all sequence-level features from a single clip.
 
         Returns: (spk_cond, style, s2mel_prompt, mel)
@@ -235,7 +256,7 @@ class IndexTTS2Engine(TTSEngine):
     def _select_best_clip(self, clips: list[Path]) -> Path:
         """Select the longest clip (up to 15s) as reference."""
         if not clips:
-            raise RuntimeError("No successful clips available for selection")
+            raise NoClipsError("No successful clips available for selection")
 
         best: Path | None = None
         best_dur = 0.0

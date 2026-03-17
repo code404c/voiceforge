@@ -12,6 +12,9 @@ build/
 # UV
 uv.lock
 
+# Coverage
+.coverage
+
 # Data (voice clips and profiles are local)
 data/
 
